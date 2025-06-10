@@ -1,10 +1,10 @@
-from typing import Dict,Any,List
+from typing import Dict,Any,List,Optional
 import requests
 
 class CVEChecker:
     def __init__(self):
         self.base_url = "https://api.osv.dev/v1/query"
-        self.ecosystem_map = {
+        self.detect_ecosystem_map = {
             'python': 'PyPI',
             'javascript': 'npm',
             'java': 'Maven',
@@ -17,11 +17,17 @@ class CVEChecker:
             'debian': 'Debian',
             'rpm': 'Linux'  
         }
-    
-    def check_package(self,package:Dict)-> Any:
+
+
+    def detect_ecosystem(self, package: Dict) -> Optional[str]:
+        """
+        Detect the ecosystem based on package metadata or file structure
+        """
+        # If ecosystem explicitly provided
         if 'ecosystem' in package:
             return package['ecosystem']
         
+        # Auto-detect based on project files
         if 'package.json' in package.get('context', {}).get('files', []):
             return 'npm'
         elif 'requirements.txt' in package.get('context', {}).get('files', []):
@@ -31,7 +37,9 @@ class CVEChecker:
         elif 'go.mod' in package.get('context', {}).get('files', []):
             return 'Go'
         
-        return self.ecosystem_map.get(package.get('language', '').lower(), 'npm')
+        # Fallback to language field
+        return self.detect_ecosystem_map.get(package.get('language', '').lower(), package.get('ecosystem',''))
+    
 
     def normalize_version(self, version: str, ecosystem: str) -> str:
         """
@@ -81,8 +89,23 @@ class CVEChecker:
             response.raise_for_status()
             
             vulns = response.json().get('vulns', [])
-            return self._enhance_vulnerabilities(vulns, package)
+            # return self._enhance_vulnerabilities(vulns, package)
+            return vulns
             
         except requests.exceptions.RequestException as e:
             print(f"Error checking {package['name']}: {str(e)}")
             return []
+
+
+checker = CVEChecker()
+# result = checker.check_package({
+#     'name': 'requests',
+#     'version': '2.25.1',
+#     'language': 'python'
+# })
+result = checker.check_package({
+   'name': 'ubuntu',
+    'version': '18.04',
+    'ecosystem': 'Debian'
+})
+print(f"result, {result}")
