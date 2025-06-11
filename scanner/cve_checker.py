@@ -49,8 +49,62 @@ class CVEChecker:
             return version.split('+')[0]  # Remove build suffixes
         elif ecosystem == 'npm':
             return version.lstrip('^~=>')  # Remove npm version prefixes
-        return version  
-     
+        return version
+
+    def _enhance_vulnerabilities(self, vulns: List[Dict], package: Dict) -> List[Dict]:
+        """
+        Enhance raw vulnerability data with additional context
+        """
+        enhanced = []
+        for vuln in vulns:
+            enhanced.append({
+                'id': vuln.get('id', ''),
+                'summary': vuln.get('summary', ''),
+                'details': vuln.get('details', ''),
+                'severity': self._get_severity(vuln),
+                'affected_versions': self._get_affected_versions(vuln),
+                'fixed_versions': self._get_fixed_versions(vuln),
+                'references': vuln.get('references', []),
+                'package': package['name'],
+                'current_version': package['version'],
+                'ecosystem': self.detect_ecosystem(package)
+            })
+        return enhanced  
+    
+    def _get_severity(self, vuln: Dict) -> str:
+        """Extract the highest severity rating"""
+        severities = []
+        for rating in vuln.get('severity', []):
+            if rating['type'] == 'CVSS_V3':
+                severities.append(f"CVSS v3: {rating['score']}")
+            elif rating['type'] == 'CVSS_V2':
+                severities.append(f"CVSS v2: {rating['score']}")
+        return ", ".join(severities) if severities else "UNKNOWN"
+
+    def _get_affected_versions(self, vuln: Dict) -> str:
+        """Format affected version ranges"""
+        ranges = []
+        for affected in vuln.get('affected', []):
+            for version_range in affected.get('ranges', []):
+                if version_range['type'] == 'ECOSYSTEM':
+                    for event in version_range['events']:
+                        if 'introduced' in event:
+                            ranges.append(f">= {event['introduced']}")
+                        elif 'fixed' in event:
+                            ranges.append(f"< {event['fixed']}")
+        return ", ".join(ranges) if ranges else "All versions"
+    
+    def _get_fixed_versions(self, vuln: Dict) -> List[str]:
+        """Extract all fixed versions"""
+        fixed_versions = set()
+        for affected in vuln.get('affected', []):
+            for version_range in affected.get('ranges', []):
+                if version_range['type'] == 'ECOSYSTEM':
+                    for event in version_range['events']:
+                        if 'fixed' in event:
+                            fixed_versions.add(event['fixed'])
+        return sorted(fixed_versions)
+
     def check_package(self, package: Dict) -> List[Dict]:
         """
         Check for CVEs in any package across multiple ecosystems
@@ -89,8 +143,7 @@ class CVEChecker:
             response.raise_for_status()
             
             vulns = response.json().get('vulns', [])
-            # return self._enhance_vulnerabilities(vulns, package)
-            return vulns
+            return self._enhance_vulnerabilities(vulns, package)
             
         except requests.exceptions.RequestException as e:
             print(f"Error checking {package['name']}: {str(e)}")
@@ -98,14 +151,10 @@ class CVEChecker:
 
 
 checker = CVEChecker()
-# result = checker.check_package({
-#     'name': 'requests',
-#     'version': '2.25.1',
-#     'language': 'python'
-# })
 result = checker.check_package({
-   'name': 'ubuntu',
-    'version': '18.04',
-    'ecosystem': 'Debian'
+    'name': 'requests',
+    'version': '2.25.1',
+    'language': 'python'
 })
+
 print(f"result, {result}")
