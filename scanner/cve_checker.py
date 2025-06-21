@@ -148,6 +148,41 @@ class CVEChecker:
         except requests.exceptions.RequestException as e:
             print(f"Error checking {package['name']}: {str(e)}")
             return []
+        
+    def generate_report(self, vulnerabilities):
+        if not vulnerabilities:
+            return "## ✅ No vulnerabilities found"
+    
+        report = ["## 🚨 Security Vulnerabilities Found", ""]
+        
+        for vuln in vulnerabilities:
+            package_name = vuln.get("package", "unknown")
+            current_version = vuln.get("current_version", "unknown")
+            vuln_id = vuln.get("id", "N/A")
+            severity = vuln.get("severity", "UNKNOWN")
+            details = vuln.get("details", "No details available")
+            affected_versions = vuln.get("affected_versions", "Not specified")
+            fixed_versions = ", ".join(vuln.get("fixed_versions", []))
+            references = vuln.get("references", [])
+    
+            report.append(f"### `{package_name}`@`{current_version}`")
+            report.append(f"**ID**: {vuln_id}")
+            report.append(f"**Severity**: {severity}")
+            report.append(f"**Affected Versions**: {affected_versions}")
+            report.append(f"**Fixed Versions**: {fixed_versions if fixed_versions else 'Not available'}")
+            report.append("")
+            report.append(f"**Details**:\n{details.strip()}")
+            
+            if references:
+                report.append("\n**References:**")
+                for ref in references:
+                    ref_type = ref.get("type", "LINK")
+                    url = ref.get("url", "")
+                    report.append(f"- [{ref_type}]({url})")
+    
+            report.append("\n---\n")
+    
+        return "\n".join(report)
 
 
 checker = CVEChecker()
@@ -157,4 +192,4 @@ result = checker.check_package({
     'language': 'python'
 })
 
-print(f"result, {result}")
+print(checker.generate_report(result))

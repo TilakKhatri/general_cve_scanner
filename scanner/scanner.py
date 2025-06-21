@@ -1,8 +1,6 @@
 # scanner/scanner.py
 import argparse
-import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from .cve_checker import CVEChecker
@@ -40,7 +38,7 @@ def main():
                     'project': project['project']
                 })
     
-    report = generate_report(vulnerabilities, args.format)
+    # report = generate_report(vulnerabilities, args.format)
     
     # Ensure output directory exists
     output_dir = os.path.dirname(args.output)
