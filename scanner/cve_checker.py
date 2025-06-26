@@ -184,12 +184,3 @@ class CVEChecker:
     
         return "\n".join(report)
 
-
-checker = CVEChecker()
-result = checker.check_package({
-    'name': 'requests',
-    'version': '2.25.1',
-    'language': 'python'
-})
-
-print(checker.generate_report(result))
